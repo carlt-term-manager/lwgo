@@ -2,9 +2,9 @@
 
 ### Install
 ```bash
-git clone git@git.linewin.cc:go/tools.git
-go install git.linewin.cc/go/tools/lwgo
-lwgo -h
+go get github.com/carltd/lwgo
+go install
+$GOPATH/bin/lwgo -h
 ```
 ### Usage
 #### init project

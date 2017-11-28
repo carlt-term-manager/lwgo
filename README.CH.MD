@@ -3,6 +3,7 @@
 ### 一、安装
 ```bash
 go get github.com/carltd/lwgo
+go install
 $GOPATH/bin/lwgo -h
 ```
 ### 二、使用
