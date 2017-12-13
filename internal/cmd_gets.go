@@ -19,7 +19,7 @@ func parseAddress(d Dep) (*defInfo, error) {
 	switch {
 	case strings.HasPrefix(d.Src, "git@"): // git@xxx.xxx:/xx/xx.git
 		di.origin = d.Dst
-		di.usedPath = strings.Replace(strings.Replace(d.Src, "git@", "", 1), ":", "/", 1)
+		di.usedPath = strings.Replace(strings.TrimPrefix(d.Src, "git@"), ":", "/", 1)
 	case regAddress.MatchString(d.Src): // http(s)://xxx.xxx/xx/xx.git
 		di.origin = d.Dst
 		di.usedPath = regHttpReplace.ReplaceAllString(d.Src, "")
@@ -27,7 +27,7 @@ func parseAddress(d Dep) (*defInfo, error) {
 		return nil, fmt.Errorf("repo(%s) can not resolve", d.Dst)
 	}
 
-	di.usedPath = path.Join(Vendor, strings.TrimRight(di.usedPath, ".git"))
+	di.usedPath = path.Join(Vendor, strings.TrimSuffix(di.usedPath, ".git"))
 
 	return di, nil
 }
