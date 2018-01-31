@@ -53,7 +53,7 @@ func init() {
 }
 
 type defInfo struct {
-	origin, version, usedPath string
+	origin, version, usedPath, branch string
 }
 
 func (di *defInfo) CurrentCommitId() (string, error) {

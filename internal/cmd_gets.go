@@ -28,12 +28,17 @@ func parseAddress(d Dep) (*defInfo, error) {
 	}
 
 	di.usedPath = path.Join(Vendor, strings.TrimSuffix(di.usedPath, ".git"))
+	di.branch = d.Branch
 
 	return di, nil
 }
 
 func cloneDep(di *defInfo) error {
-	cmdArgs := []string{"clone", di.origin, di.usedPath}
+	cmdArgs := []string{"clone"}
+	if di.branch != "" {
+		cmdArgs = append(cmdArgs, "--branch", di.branch)
+	}
+	cmdArgs = append(cmdArgs, di.origin, di.usedPath)
 	if _, err := exec.Command("git", cmdArgs...).CombinedOutput(); err != nil {
 		return fmt.Errorf("repo(%s) clone err:%s", di.origin, err)
 	}
@@ -41,7 +46,7 @@ func cloneDep(di *defInfo) error {
 }
 
 func updateDep(di *defInfo) error {
-	cmdLookupBranch := fmt.Sprintf(`cd %s && git fetch && git pull origin`, di.usedPath)
+	cmdLookupBranch := fmt.Sprintf(`cd %s && git fetch && git pull origin %s`, di.usedPath, di.branch)
 	if _, err := exec.Command("sh", "-c", cmdLookupBranch).CombinedOutput(); err != nil {
 		return fmt.Errorf("repo(%s) update err: %s", di.origin, err)
 	}

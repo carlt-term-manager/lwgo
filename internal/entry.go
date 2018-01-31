@@ -7,9 +7,10 @@ import (
 )
 
 type Dep struct {
-	Src string `json:"src"`
-	Dst string `json:"dst,omitempty"`
-	Ver string `json:"ver,omitempty"`
+	Src    string `json:"src"`
+	Dst    string `json:"dst,omitempty"`
+	Ver    string `json:"ver,omitempty"`
+	Branch string `json:"branch,omitempty"`
 }
 
 type Entry struct {
