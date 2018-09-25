@@ -39,9 +39,9 @@ func CmdAddDeps() {
 		src, ver, dst = args[0], args[1], args[2]
 	}
 
-	p := newEntry()
+	p := newMod()
 	handleError(p.Read(PackageFile))
-	p.Deps = append(p.Deps, Dep{Src: src, Ver: ver, Dst: dst})
+	p.Deps = append(p.Deps, ModItem{Name: src, Version: ver, Replace: dst})
 	handleError(p.Validate())
 	p.Save(PackageFile)
 

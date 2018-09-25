@@ -50,11 +50,17 @@ lwgo add src-addr beta-1.0.1 dst-addr
 
 ```json
 {
+    "name": "demo",
+    "version": "1.00.00",
     "deps":[
     	{
-		"src": "https://github.com/xxx/xx.git",
-		"dst": "git@git.example.com:another/xxx.git",
-		"ver": "release-1.0.0"
+		    "src": "https://github.com/xxx/xx.git",
+		    "dst": "git@git.example.com:another/xxx.git",
+		    "ver": "release-1.0.0"
+        },
+        {
+            "src": "https://github.com/xxx/xx1.git",
+            "branch": "master"
         }
     ]
 }

@@ -6,20 +6,20 @@ import (
 	"path"
 )
 
-func readInitArgs(p *Entry) {
+func readInitArgs(p *mod) {
 	fmt.Print(`Project Name: `)
 	fmt.Scanln(&p.Name)
 
-	fmt.Print(`Project Version(default=1.0.0):`)
+	fmt.Print(`Project Version(default=1.00.00):`)
 	fmt.Scanln(&p.Version)
 	if p.Version == "" {
-		p.Version = "1.0.0"
+		p.Version = "1.00.00"
 	}
 }
 
 // init project and create dir, vendor, package.json
 func CmdInit() {
-	p := newEntry()
+	p := newMod()
 	readInitArgs(p)
 
 	if _, err := os.Stat(p.Name); err != nil {

@@ -3,18 +3,22 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
 	lib "github.com/carltd/lwgo/internal"
+	"os"
+)
+
+const (
+	Version = "2.00.00"
 )
 
 func usage() {
-	fmt.Println(`  Golang package manager for Carlt
+	fmt.Printf(`  Golang package manager for Carlt v%s
 ------------------------------------------------
   init    init a project
   add     add deps to project's vendor directory
   gets    gets all deps
-  help    this help page`)
+  help    this help page
+`, Version)
 	os.Exit(0)
 }
 

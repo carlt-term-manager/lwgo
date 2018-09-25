@@ -9,84 +9,81 @@ import (
 )
 
 func CmdGets() {
-	p := newEntry()
-	handleError(p.Read(PackageFile))
-	handleError(doCmdGets(p))
+	handleError(
+		doCmdGets(newMod()),
+	)
 }
 
-func parseAddress(d Dep) (*defInfo, error) {
-	di := &defInfo{}
-	switch {
-	case strings.HasPrefix(d.Src, "git@"): // git@xxx.xxx:/xx/xx.git
-		di.origin = d.Dst
-		di.usedPath = strings.Replace(strings.TrimPrefix(d.Src, "git@"), ":", "/", 1)
-	case regAddress.MatchString(d.Src): // http(s)://xxx.xxx/xx/xx.git
-		di.origin = d.Dst
-		di.usedPath = regHttpReplace.ReplaceAllString(d.Src, "")
-	default:
-		return nil, fmt.Errorf("repo(%s) can not resolve", d.Dst)
-	}
-
-	di.usedPath = path.Join(Vendor, strings.TrimSuffix(di.usedPath, ".git"))
-	di.branch = d.Branch
-
-	return di, nil
-}
-
-func cloneDep(di *defInfo) error {
+func (u *updater) cloneRepo(di *defInfo) error {
 	cmdArgs := []string{"clone"}
 	if di.branch != "" {
 		cmdArgs = append(cmdArgs, "--branch", di.branch)
 	}
-	cmdArgs = append(cmdArgs, di.origin, di.usedPath)
+
+	cmdArgs = append(cmdArgs, di.repoAddr, di.storePath)
 	if _, err := exec.Command("git", cmdArgs...).CombinedOutput(); err != nil {
-		return fmt.Errorf("repo(%s) clone err:%s", di.origin, err)
+		return fmt.Errorf("repo(%s) clone err:%s", di.repoAddr, err)
 	}
 	return nil
 }
 
-func updateDep(di *defInfo) error {
-	cmdLookupBranch := fmt.Sprintf(`cd %s && git fetch && git pull origin %s`, di.usedPath, di.branch)
+func (u *updater) updateBranch(di *defInfo) error {
+	cmdLookupBranch := fmt.Sprintf(`cd %s && git fetch && git pull origin %s`, di.storePath, di.branch)
 	if _, err := exec.Command("sh", "-c", cmdLookupBranch).CombinedOutput(); err != nil {
-		return fmt.Errorf("repo(%s) update err: %s", di.origin, err)
+		return fmt.Errorf("repo(%s) update err: %s", di.repoAddr, err)
 	}
 	return nil
 }
 
-func co(di *defInfo) error {
+func (u *updater) switchToTag(di *defInfo) error {
 	if di.version != "" {
-		cmdCheckoutBranch := fmt.Sprintf(`cd %s && git checkout %s`, di.usedPath, di.version)
+		cmdCheckoutBranch := fmt.Sprintf(`cd %s && git checkout %s`, di.storePath, di.version)
 		if _, err := exec.Command("sh", "-c", cmdCheckoutBranch).CombinedOutput(); err != nil {
-			return fmt.Errorf("repo(%s) checkout(%s) err: (%s)", di.origin, di.version, err)
+			return fmt.Errorf("repo(%s) checkout(%s) err: (%s)", di.repoAddr, di.version, err)
 		}
 	}
 	return nil
 }
 
-var processedDeps = map[string]bool{}
+func (u *updater) isProcessed(name string) bool {
+	if u.processed[name] {
+		return true
+	}
+	u.processed[name] = true
+	return false
+}
 
-func updateDeps(p *Entry) error {
-	col := &Entry{}
+// 更新依赖
+func (u *updater) Run(p *mod) error {
+	col := &mod{}
 	for _, d := range p.Deps {
-		if processedDeps[d.Dst] {
+		fmt.Printf("[*] %s (%s)...", d.Name, d.Version)
+
+		// 处理过的不再处理
+		if u.isProcessed(d.Replace) {
+			fmt.Println("skipped.")
 			continue
 		}
-		processedDeps[d.Dst] = true
-		di, err := parseAddress(d)
+
+		di, err := u.parseAddress(d)
 		if err != nil {
 			return err
 		}
+
 		// if repo does not exists, clone it
-		if _, err := os.Stat(di.usedPath); err != nil {
+		if _, err := os.Stat(di.storePath); err != nil {
 			if !os.IsNotExist(err) {
-				handleError(fmt.Errorf("repo(%s) proc error :%s", di.origin, err))
+				handleError(fmt.Errorf("repo(%s) proc error :%s", di.repoAddr, err))
 			}
-			handleError(cloneDep(di))
+			handleError(u.cloneRepo(di))
 		}
 
-		// checkout version
-		handleError(updateDep(di))
-		handleError(co(di))
+		// 优先版本， 没版本按分支
+		if di.version != "" {
+			handleError(u.switchToTag(di))
+		} else {
+			handleError(u.updateBranch(di))
+		}
 
 		deps, err := getSubDeps(di)
 		handleError(err)
@@ -94,16 +91,47 @@ func updateDeps(p *Entry) error {
 		for _, c := range deps.Deps {
 			col.Deps = append(col.Deps, c)
 		}
+		fmt.Println("succeed.")
 	}
 	if len(col.Deps) == 0 {
 		return nil
 	}
 
-	return updateDeps(col)
+	return u.Run(col)
 }
 
-func doCmdGets(p *Entry) error {
+func (u *updater) parseAddress(d ModItem) (*defInfo, error) {
+	di := &defInfo{repoAddr: d.Replace, branch: d.Branch, version: d.Version}
+	switch {
+
+	// git@xxx.xxx:xx/xx.git
+	case strings.HasPrefix(d.Name, "git@"):
+		di.storePath = strings.Replace(strings.TrimPrefix(d.Name, "git@"), ":", "/", 1)
+
+	// http://xxx.xxx/xx/xx.git
+	case strings.HasPrefix(d.Name, "http://"):
+		di.storePath = strings.TrimPrefix(d.Name, "http://")
+
+	// https://xxx.xxx/xx/xx.git
+	case strings.HasPrefix(d.Name, "https://"):
+		di.storePath = strings.TrimPrefix(d.Name, "https://")
+
+	default:
+		return nil, fmt.Errorf("repo(%s) can not resolve", d.Replace)
+	}
+
+	di.storePath = path.Join(Vendor, strings.TrimSuffix(di.storePath, ".git"))
+
+	return di, nil
+}
+
+type updater struct {
+	processed map[string]bool
+}
+
+func doCmdGets(p *mod) error {
+	handleError(p.Read(PackageFile))
 	p.Fill()
-	processedDeps = map[string]bool{}
-	return updateDeps(p)
+	updaterNew := &updater{processed: make(map[string]bool, 0)}
+	return updaterNew.Run(p)
 }

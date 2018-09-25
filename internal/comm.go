@@ -19,7 +19,6 @@ var (
 	packageDir       = "./"
 	regTagMatcherExp = regexp.MustCompile(`^(?:\*)|master|[\w\-.~]+$`)
 	regCommitId      = regexp.MustCompile("^commit ([a-f0-9]+)")
-	regHttpReplace   = regexp.MustCompile(`^https?://`)
 	regAddress       = regexp.MustCompile(`^(?:(?:https?://)|(?:git@))(?:[\w-]{1,61}\.)+[A-Za-z]{2,6}`)
 )
 
@@ -31,9 +30,9 @@ func checkVendorDir(vendorDir string) error {
 	return nil
 }
 
-func getSubDeps(di *defInfo) (*Entry, error) {
-	p := newEntry()
-	err := p.Read(path.Join(di.usedPath, PackageFile))
+func getSubDeps(di *defInfo) (*mod, error) {
+	p := newMod()
+	err := p.Read(path.Join(di.storePath, PackageFile))
 	if err != nil && !os.IsNotExist(err) {
 		return nil, err
 	}
@@ -53,7 +52,7 @@ func init() {
 }
 
 type defInfo struct {
-	origin, version, usedPath, branch string
+	repoAddr, version, storePath, branch string
 }
 
 func (di *defInfo) CurrentCommitId() (string, error) {
@@ -61,10 +60,14 @@ func (di *defInfo) CurrentCommitId() (string, error) {
 		result []byte
 		err    error
 	)
-	cmdGetTags := fmt.Sprintf(`cd %s && git log -1`, di.usedPath)
+	cmdGetTags := fmt.Sprintf(`cd %s && git log -1`, di.storePath)
 	if result, err = exec.Command("sh", "-c", cmdGetTags).CombinedOutput(); err != nil {
 		return "", fmt.Errorf("get commit id err: %s", err)
 	}
 
 	return strings.TrimPrefix(regCommitId.FindString(string(result)), "commit "), nil
+}
+
+func (di *defInfo) String() string {
+	return fmt.Sprintf("%s -> %s(%s)", di.repoAddr, di.storePath, di.version)
 }
